@@ -3,6 +3,7 @@
     package="com.example.cameraxapp">
     <uses-feature android:name="android.hardware.camera.any" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
 
     <application
         android:allowBackup="true"
@@ -10,6 +11,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:name=".CameraXApplication"
         android:theme="@style/Theme.CameraXApp">
         <activity android:name=".MainActivity">
             <intent-filter>

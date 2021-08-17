@@ -1,16 +1,14 @@
 package com.example.cameraxapp
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
-import android.net.Uri
+import android.hardware.display.DisplayManager
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.Preview
+import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
@@ -24,22 +22,50 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
-    private var imageCapture: ImageCapture? = null
-    private lateinit var viewFinder: PreviewView
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var imageCapture: ImageCapture
+    private lateinit var imageCaptureBuilder: ImageCapture.Builder
     private lateinit var outputDirectory: File
     private lateinit var cameraExecutor: ExecutorService
+    private var camera: Camera? = null
+    private var displayId = -1
+
+    private val cameraProviderFuture by lazy {
+        ProcessCameraProvider.getInstance(this) // 카메라 얻어오면 이후 실행 리스너 등록
+        // camerax는 수명주기 인식 해서 카메라 열고 닫는 작업 필요 없음
+    }
+
+    private val displayManager by lazy {
+        getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+    }
+
+    private val cameraMainExecutors by lazy {
+        ContextCompat.getMainExecutor(this)
+    }
+
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) = Unit
+
+        override fun onDisplayRemoved(displayId: Int) = Unit
+
+        override fun onDisplayChanged(displayId: Int) {
+            if (this@MainActivity.displayId == displayId) {
+
+            }
+        }
+
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val binding: ActivityMainBinding = DataBindingUtil.setContentView(
+        binding = DataBindingUtil.setContentView(
             this, R.layout.activity_main
         )
         setContentView(binding.root)
 
-        viewFinder = binding.viewFinder
         // 카메라 권한 요청
         if (allPermissionsGranted()) {
-            startCamera()
+            startCamera(binding.viewFinder)
         } else {
             ActivityCompat.requestPermissions(
                 this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
@@ -48,50 +74,47 @@ class MainActivity : AppCompatActivity() {
 
         // photo 버튼 리스너 설정
         binding.cameraCaptureButton.setOnClickListener {
-            takePhoto()
+//            takePhoto()
         }
 
 
         outputDirectory = getOutputDirectory()
 
+    }
+
+//    private fun takePhoto() {
+//        val imageCapture = imageCaptureBuilder ?: return
+//
+//        // 이미지 타임 스탬프 생성
+//        val photoFile = File(
+//            outputDirectory,
+//            SimpleDateFormat(
+//                FILENAME_FORMAT, Locale.KOREA
+//            ).format(System.currentTimeMillis()) + ".jpg"
+//        )
+//
+//        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+//
+//        // Set up image capture listener, which is triggered after photo has
+//        // been taken
+//
+//    }
+
+    private fun startCamera(viewFinder: PreviewView) {
+        displayManager.registerDisplayListener(displayListener, null) // display가 가로 세로 변경 되었을 때 감지
         cameraExecutor = Executors.newSingleThreadExecutor()
+        viewFinder.postDelayed({
+            displayId = viewFinder.display.displayId
+            bindCameraUseCase()
+        }, 10)
+
     }
 
-    private fun takePhoto() {
-        val imageCapture = imageCapture ?: return
-
-        // 이미지 타임 스탬프 생성
-        val photoFile = File(
-            outputDirectory,
-            SimpleDateFormat(
-                FILENAME_FORMAT, Locale.KOREA
-            ).format(System.currentTimeMillis()) + ".jpg"
-        )
-
-        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
-        // Set up image capture listener, which is triggered after photo has
-        // been taken
-        imageCapture.takePicture(
-            outputOptions,
-            ContextCompat.getMainExecutor(this),
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onError(exc: ImageCaptureException) {
-                    Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
-                }
-
-                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    val savedUri = Uri.fromFile(photoFile)
-                    val msg = "Photo capture succeeded: $savedUri"
-                    Toast.makeText(baseContext, msg, Toast.LENGTH_LONG).show()
-                    Log.d(TAG, msg)
-                }
-            })
-    }
-
-    private fun startCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)//인스턴스 생성
-        // camerax는 수명주기 인식 해서 카메라 열고 닫는 작업 필요 없음
+    private fun bindCameraUseCase() = with(binding){
+        val rotation = viewFinder.display.rotation //화면 회전 체크
+        // 후방 카메라 기본값으로 선택
+        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+//        val cameraSelector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build() //카메라 설정 (후면)
 
         cameraProviderFuture.addListener({
             // camera lifecycle 을 camera lifecycle owner 에 바인딩
@@ -99,32 +122,35 @@ class MainActivity : AppCompatActivity() {
 
             //프리뷰 설정
             val preview = Preview.Builder()
-                .build()
-                .also {
-                    it.setSurfaceProvider(viewFinder.surfaceProvider)
-                }
-
-            imageCapture = ImageCapture.Builder()
-                .build()
+                .apply {
+                    setTargetAspectRatio(AspectRatio.RATIO_4_3) // 비율 4:3
+                    setTargetRotation(rotation) // 화면 로테이션 지정
+//                    setTargetResolution(Size(200,200)) // 해상도 크기 지정할때 쓰임
+                }.build()
 
 
-            // 후방 카메라 기본값으로 선택
-            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+            imageCaptureBuilder = ImageCapture.Builder() // 카메라 캡쳐 세팅
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY) // 지연을 최소화
+                .setTargetAspectRatio(AspectRatio.RATIO_4_3) // 비율 4:3
+                .setTargetRotation(rotation) // 화면 로테이션 지정
+                .setFlashMode(ImageCapture.FLASH_MODE_AUTO)
+
+            imageCapture = imageCaptureBuilder.build()
+
 
             try {
-                // 리바인딩 전에 use case 바인딩 해제
+                // 리바인딩 전에 기존에 바인딩 되어있는 카메라 해제
                 cameraProvider.unbindAll()
-
                 // Bind use cases to camera
-                cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageCapture
+                camera = cameraProvider.bindToLifecycle(
+                    this@MainActivity, cameraSelector, preview, imageCapture
                 )
-
+                preview.setSurfaceProvider(viewFinder.surfaceProvider)
             } catch (exc: Exception) {
-                Log.e(TAG, "Use case binding failed", exc)
+                Log.e("error","error")
             }
 
-        }, ContextCompat.getMainExecutor(this))
+        }, cameraMainExecutors)
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
@@ -153,11 +179,11 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
-                startCamera()
+                startCamera(binding.viewFinder)
             } else { // 권한이 부여되지 않았을 때 알리는 토스트
                 Toast.makeText(
                     this,
-                    "Permissions not granted by the user.",
+                    "카메라 권한이 없습니다.",
                     Toast.LENGTH_SHORT
                 ).show()
                 finish()
