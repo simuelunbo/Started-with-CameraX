@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.hardware.display.DisplayManager
+import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -15,7 +17,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
 import com.example.cameraxapp.databinding.ActivityMainBinding
+import com.example.cameraxapp.util.PhotoPathUtil
 import java.io.File
+import java.io.FileNotFoundException
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
@@ -25,10 +29,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var imageCapture: ImageCapture
     private lateinit var imageCaptureBuilder: ImageCapture.Builder
-    private lateinit var outputDirectory: File
     private lateinit var cameraExecutor: ExecutorService
     private var camera: Camera? = null
     private var displayId = -1
+    private var isCapturing: Boolean = false
+    private var contentUri: Uri? = null
 
     private val cameraProviderFuture by lazy {
         ProcessCameraProvider.getInstance(this) // 카메라 얻어오면 이후 실행 리스너 등록
@@ -72,33 +77,51 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        // photo 버튼 리스너 설정
-        binding.cameraCaptureButton.setOnClickListener {
+//        // photo 버튼 리스너 설정
+//        binding.cameraCaptureButton.setOnClickListener {
 //            takePhoto()
-        }
-
-
-        outputDirectory = getOutputDirectory()
+//        }
 
     }
 
-//    private fun takePhoto() {
-//        val imageCapture = imageCaptureBuilder ?: return
-//
-//        // 이미지 타임 스탬프 생성
-//        val photoFile = File(
-//            outputDirectory,
-//            SimpleDateFormat(
-//                FILENAME_FORMAT, Locale.KOREA
-//            ).format(System.currentTimeMillis()) + ".jpg"
-//        )
-//
-//        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-//
-//        // Set up image capture listener, which is triggered after photo has
-//        // been taken
-//
-//    }
+    private fun bindCaptureListener() = with(binding) {
+        cameraCaptureButton.setOnClickListener {
+            if (!isCapturing) {
+                isCapturing = true
+                takePhoto()
+            }
+        }
+    }
+
+    private fun takePhoto() {
+        if (::imageCapture.isInitialized.not()) return
+
+        val photoFile = File(
+            PhotoPathUtil.getOutputDirectory(this),
+            SimpleDateFormat(
+                FILENAME_FORMAT, Locale.KOREA
+            ).format(System.currentTimeMillis()) + ".jpg"
+        )
+
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+        imageCapture.takePicture(
+            outputOptions,
+            cameraExecutor,
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    val savedUri = outputFileResults.savedUri ?: Uri.fromFile(photoFile)
+                    contentUri = savedUri
+                    updateSavedImageContent()
+                }
+
+                override fun onError(exception: ImageCaptureException) {
+                    exception.printStackTrace()
+                    isCapturing = false
+                }
+
+            })
+
+    }
 
     private fun startCamera(viewFinder: PreviewView) {
         displayManager.registerDisplayListener(displayListener, null) // display가 가로 세로 변경 되었을 때 감지
@@ -110,7 +133,7 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun bindCameraUseCase() = with(binding){
+    private fun bindCameraUseCase() = with(binding) {
         val rotation = viewFinder.display.rotation //화면 회전 체크
         // 후방 카메라 기본값으로 선택
         val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -146,25 +169,37 @@ class MainActivity : AppCompatActivity() {
                     this@MainActivity, cameraSelector, preview, imageCapture
                 )
                 preview.setSurfaceProvider(viewFinder.surfaceProvider)
+                bindCaptureListener()
             } catch (exc: Exception) {
-                Log.e("error","error")
+                Log.e("error", "error")
             }
 
         }, cameraMainExecutors)
+    }
+
+    private fun updateSavedImageContent() {
+        contentUri?.let {
+            isCapturing = try {
+                val file = File(PhotoPathUtil.getPath(this, it) ?: throw FileNotFoundException())
+                MediaScannerConnection.scanFile(
+                    this,
+                    arrayOf(file.path),
+                    arrayOf("image/jpeg"),
+                    null
+                ) // 외부에서 파일을 읽히도록 해줌
+                false
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this, "파일이 존재하지 않습니다.", Toast.LENGTH_SHORT).show()
+                false
+            }
+        }
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(
             baseContext, it
         ) == PackageManager.PERMISSION_GRANTED // 앱에 권한이 있는지에 따라 PERMISSION_GRANTED 또는 PERMISSION_DENIED를 반환 체크
-    }
-
-    private fun getOutputDirectory(): File {
-        val mediaDir = externalMediaDirs.firstOrNull()?.let {
-            File(it, resources.getString(R.string.app_name)).apply { mkdirs() }
-        }
-        return if (mediaDir != null && mediaDir.exists())
-            mediaDir else filesDir
     }
 
     override fun onDestroy() {
@@ -192,7 +227,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val TAG = "CameraXBasic"
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
