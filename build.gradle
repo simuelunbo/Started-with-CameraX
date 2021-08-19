@@ -7,7 +7,8 @@ buildscript {
     }
     ext.versions = [
             'cameraX'  : '1.0.1',
-            'cameraX_view'  : "1.0.0-alpha27"
+            'cameraX_view'  : "1.0.0-alpha27",
+            'glide' : "4.12.0"
     ]
     dependencies {
         classpath 'com.android.tools.build:gradle:7.0.0'

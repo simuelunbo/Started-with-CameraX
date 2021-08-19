@@ -7,16 +7,21 @@ import android.hardware.display.DisplayManager
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
+import androidx.camera.core.impl.ImageOutputConfig
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
 import com.example.cameraxapp.databinding.ActivityMainBinding
+import com.example.cameraxapp.extensions.loadCenterCrop
 import com.example.cameraxapp.util.PhotoPathUtil
 import java.io.File
 import java.io.FileNotFoundException
@@ -33,7 +38,8 @@ class MainActivity : AppCompatActivity() {
     private var camera: Camera? = null
     private var displayId = -1
     private var isCapturing: Boolean = false
-    private var contentUri: Uri? = null
+    private var uriList = mutableListOf<Uri>()// 사진 촬영 이후의 관리 리스트
+    private var root: View? = null
 
     private val cameraProviderFuture by lazy {
         ProcessCameraProvider.getInstance(this) // 카메라 얻어오면 이후 실행 리스너 등록
@@ -55,7 +61,10 @@ class MainActivity : AppCompatActivity() {
 
         override fun onDisplayChanged(displayId: Int) {
             if (this@MainActivity.displayId == displayId) {
-
+                if (::imageCapture.isInitialized && root != null) {
+                    imageCapture.targetRotation =
+                        root?.display?.rotation ?: ImageOutputConfig.INVALID_ROTATION // 화면 회전시 대응
+                }
             }
         }
 
@@ -66,6 +75,7 @@ class MainActivity : AppCompatActivity() {
         binding = DataBindingUtil.setContentView(
             this, R.layout.activity_main
         )
+        root = binding.root
         setContentView(binding.root)
 
         // 카메라 권한 요청
@@ -76,11 +86,6 @@ class MainActivity : AppCompatActivity() {
                 this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
             )
         }
-
-//        // photo 버튼 리스너 설정
-//        binding.cameraCaptureButton.setOnClickListener {
-//            takePhoto()
-//        }
 
     }
 
@@ -94,8 +99,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun takePhoto() {
-        if (::imageCapture.isInitialized.not()) return
-
+        if (::imageCapture.isInitialized.not()) return // 이미지 캡쳐 초기화 되어있는지 확인
         val photoFile = File(
             PhotoPathUtil.getOutputDirectory(this),
             SimpleDateFormat(
@@ -110,8 +114,7 @@ class MainActivity : AppCompatActivity() {
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     val savedUri = outputFileResults.savedUri ?: Uri.fromFile(photoFile)
-                    contentUri = savedUri
-                    updateSavedImageContent()
+                    updateSavedImageContent(savedUri)
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -177,7 +180,7 @@ class MainActivity : AppCompatActivity() {
         }, cameraMainExecutors)
     }
 
-    private fun updateSavedImageContent() {
+    private fun updateSavedImageContent(contentUri: Uri?) {
         contentUri?.let {
             isCapturing = try {
                 val file = File(PhotoPathUtil.getPath(this, it) ?: throw FileNotFoundException())
@@ -187,6 +190,13 @@ class MainActivity : AppCompatActivity() {
                     arrayOf("image/jpeg"),
                     null
                 ) // 외부에서 파일을 읽히도록 해줌
+                Handler(Looper.getMainLooper()).post {
+                    binding.previewImageView.loadCenterCrop(
+                        url = it.toString(),
+                        corner = 4f
+                    ) // 찍은 이미지를 미리보기 이미지뷰에 보여주기
+                }
+                uriList.add(it)
                 false
             } catch (e: Exception) {
                 e.printStackTrace()
