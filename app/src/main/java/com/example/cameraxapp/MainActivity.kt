@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -173,11 +174,31 @@ class MainActivity : AppCompatActivity() {
                 )
                 preview.setSurfaceProvider(viewFinder.surfaceProvider)
                 bindCaptureListener()
+                bindZoomListener()
             } catch (exc: Exception) {
                 Log.e("error", "error")
             }
 
         }, cameraMainExecutors)
+    }
+
+    private fun bindZoomListener() = with(binding) {
+        val listener = object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                val currentZoomRatio =
+                    camera?.cameraInfo?.zoomState?.value?.zoomRatio ?: 1f // 현재 비율값 가져옴
+                val delta = detector.scaleFactor // 카메라 움직인 비율 값
+                camera?.cameraControl?.setZoomRatio(currentZoomRatio * delta) // 어느 정도 확대 할것인지 처리 값
+                return true
+            }
+
+        }
+
+        val scaleGestureDetector = ScaleGestureDetector(this@MainActivity, listener)
+        viewFinder.setOnTouchListener { _, event ->
+            scaleGestureDetector.onTouchEvent(event)
+            return@setOnTouchListener true
+        }
     }
 
     private fun updateSavedImageContent(contentUri: Uri?) {
