@@ -20,6 +20,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
 import com.example.cameraxapp.databinding.ActivityMainBinding
 import com.example.cameraxapp.extensions.loadCenterCrop
@@ -41,6 +42,7 @@ class MainActivity : AppCompatActivity() {
     private var isCapturing: Boolean = false
     private var uriList = mutableListOf<Uri>()// 사진 촬영 이후의 관리 리스트
     private var root: View? = null
+    private var isFlashEnabled = false
 
     private val cameraProviderFuture by lazy {
         ProcessCameraProvider.getInstance(this) // 카메라 얻어오면 이후 실행 리스너 등록
@@ -109,6 +111,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+        if (isFlashEnabled) flashLight(true)
         imageCapture.takePicture(
             outputOptions,
             cameraExecutor,
@@ -121,10 +124,18 @@ class MainActivity : AppCompatActivity() {
                 override fun onError(exception: ImageCaptureException) {
                     exception.printStackTrace()
                     isCapturing = false
+                    flashLight(false)
                 }
 
             })
 
+    }
+
+    private fun flashLight(light: Boolean) {
+        val hasFlash = camera?.cameraInfo?.hasFlashUnit() ?: false
+        if (hasFlash) {
+            camera?.cameraControl?.enableTorch(light)
+        }
     }
 
     private fun startCamera(viewFinder: PreviewView) {
@@ -175,6 +186,7 @@ class MainActivity : AppCompatActivity() {
                 preview.setSurfaceProvider(viewFinder.surfaceProvider)
                 bindCaptureListener()
                 bindZoomListener()
+                initFlashAndAddListener()
             } catch (exc: Exception) {
                 Log.e("error", "error")
             }
@@ -201,6 +213,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun initFlashAndAddListener() = with(binding) {
+        val hasFlash = camera?.cameraInfo?.hasFlashUnit() ?: false // 기기에 플래쉬 유무 체크
+        flashImageView.isVisible = hasFlash
+        if (hasFlash) {
+            flashImageView.setOnClickListener {
+                isFlashEnabled = isFlashEnabled.not()
+            }
+        } else {
+            isFlashEnabled = false
+            flashImageView.setOnClickListener(null)
+        }
+    }
+
     private fun updateSavedImageContent(contentUri: Uri?) {
         contentUri?.let {
             isCapturing = try {
@@ -218,10 +243,12 @@ class MainActivity : AppCompatActivity() {
                     ) // 찍은 이미지를 미리보기 이미지뷰에 보여주기
                 }
                 uriList.add(it)
+                flashLight(false)
                 false
             } catch (e: Exception) {
                 e.printStackTrace()
                 Toast.makeText(this, "파일이 존재하지 않습니다.", Toast.LENGTH_SHORT).show()
+                flashLight(false)
                 false
             }
         }

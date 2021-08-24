@@ -25,13 +25,15 @@
                 android:id="@+id/viewFinder"
                 android:layout_width="0dp"
                 android:layout_height="0dp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
                 android:clickable="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintDimensionRatio="h,4:3"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHeight_default="percent"
-                app:layout_constraintDimensionRatio="h,4:3"/>
+                app:layout_constraintHorizontal_bias="0.503"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.0" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -67,6 +69,20 @@
             app:layout_constraintTop_toTopOf="@+id/cameraCaptureButton"
             android:contentDescription="@string/image_preview"
             />
+
+        <ImageView
+            android:id="@+id/flashImageView"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_marginStart="16dp"
+            android:background="@drawable/button_round_corner_4_black_24"
+            app:layout_constraintBottom_toBottomOf="@+id/cameraCaptureButton"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/cameraCaptureButton"
+            android:visibility="gone"
+            app:srcCompat="@drawable/ic_flash" />
+
+
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>
