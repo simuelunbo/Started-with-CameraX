@@ -187,6 +187,7 @@ class MainActivity : AppCompatActivity() {
                 bindCaptureListener()
                 bindZoomListener()
                 initFlashAndAddListener()
+                bindPreviewImageViewClickListener()
             } catch (exc: Exception) {
                 Log.e("error", "error")
             }
@@ -263,6 +264,12 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
+    }
+
+    private fun bindPreviewImageViewClickListener() = with(binding) {
+        previewImageView.setOnClickListener {
+            startActivity(ImageListActivity.newIntent(this@MainActivity, uriList))
+        }
     }
 
     override fun onRequestPermissionsResult(
