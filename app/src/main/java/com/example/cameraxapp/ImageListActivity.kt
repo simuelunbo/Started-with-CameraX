@@ -2,12 +2,17 @@ package com.example.cameraxapp
 
 import android.app.Activity
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.viewpager2.widget.ViewPager2
 import com.example.cameraxapp.adapter.ImageViewPagerAdapter
 import com.example.cameraxapp.databinding.ActivityImageListBinding
+import com.example.cameraxapp.util.PhotoPathUtil
+import java.io.File
+import java.io.FileNotFoundException
 
 class ImageListActivity : AppCompatActivity() {
 
@@ -27,18 +32,49 @@ class ImageListActivity : AppCompatActivity() {
     }
 
     private fun setupImageList() = with(binding) {
-        if(::imageViewPagerAdapter.isInitialized.not()){
+        if (::imageViewPagerAdapter.isInitialized.not()) {
             imageViewPagerAdapter = ImageViewPagerAdapter(uriList)
         }
         imageViewPager.adapter = imageViewPagerAdapter
         indicator.setViewPager(imageViewPager)
-        imageViewPager.registerOnPageChangeCallback(object: ViewPager2.OnPageChangeCallback() { // 현재 위치에 따라서 포지션 값 변경
+        imageViewPager.registerOnPageChangeCallback(object :
+            ViewPager2.OnPageChangeCallback() { // 현재 위치에 따라서 포지션 값 변경
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-                toolbar.title = getString(R.string.images_page, position + 1, imageViewPagerAdapter.uriList.size)
+                toolbar.title = getString(
+                    R.string.images_page,
+                    position + 1,
+                    imageViewPagerAdapter.uriList.size
+                )
             }
         })
+        deleteButton.setOnClickListener {
+            removeImage(uriList[imageViewPager.currentItem])
+        }
     }
+
+    private fun removeImage(uri: Uri) {
+        try {
+            val file = File(PhotoPathUtil.getPath(this, uri) ?: throw FileNotFoundException())
+            file.delete() // 실질적으로 이미지 컨텐트가 사라진거지 삭제가 된것이 아니라 따로 삭제 코드 구현해야함
+            imageViewPagerAdapter.uriList.let {
+                val imageList = it.toMutableList()
+                val position = imageList.indexOf(uri)
+                imageList.remove(uri)
+                imageViewPagerAdapter.uriList = imageList
+                imageViewPagerAdapter.notifyItemChanged(position)
+            }
+            MediaScannerConnection.scanFile(this, arrayOf(file.path), arrayOf("image/jpeg"), null)
+            binding.indicator.setViewPager(binding.imageViewPager)
+            if (imageViewPagerAdapter.uriList.isEmpty()) {
+                finish()
+            }
+        } catch (e: FileNotFoundException) {
+            e.printStackTrace()
+            Toast.makeText(this, getString(R.string.image_not_found), Toast.LENGTH_SHORT).show()
+        }
+    }
+
 
     companion object {
         private const val URI_LIST_KEY = "uriList"
