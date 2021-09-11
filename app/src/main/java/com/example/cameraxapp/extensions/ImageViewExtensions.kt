@@ -7,10 +7,18 @@ import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.bumptech.glide.request.transition.DrawableCrossFadeFactory
+import com.example.cameraxapp.R
 
 private val factory = DrawableCrossFadeFactory.Builder().setCrossFadeEnabled(true).build()
 
 internal fun ImageView.clear() = Glide.with(context).clear(this)
+
+internal fun ImageView.previewClear() {
+    Glide.with(this)
+        .load(R.drawable.ic_gallery)
+        .centerInside()
+        .into(this)
+}
 
 internal fun ImageView.loadCenterCrop(url: String, corner: Float = 0f) {
     Glide.with(this)
@@ -18,8 +26,9 @@ internal fun ImageView.loadCenterCrop(url: String, corner: Float = 0f) {
         .transition(DrawableTransitionOptions.withCrossFade(factory))
         .diskCacheStrategy(DiskCacheStrategy.ALL)
         .apply {
-            transformations
-            if (corner > 0) transforms(CenterCrop(), RoundedCorners(corner.fromDpToPx()))
+            if (corner > 0) {
+                transform(CenterCrop(), RoundedCorners(corner.fromDpToPx()))
+            }
         }
         .into(this)
 }

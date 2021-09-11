@@ -16,7 +16,7 @@
             android:id="@+id/viewFinderContainer"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toBottomOf="@id/controllerGuideline"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
@@ -42,7 +42,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            app:layout_constraintGuide_percent="0.75" />
+            app:layout_constraintGuide_percent="0.85" />
 
         <ImageButton
             android:id="@+id/cameraCaptureButton"
@@ -61,21 +61,20 @@
             android:layout_width="64dp"
             android:layout_height="64dp"
             android:layout_marginEnd="16dp"
-            android:background="@drawable/button_round_corner_4_black_24"
+            android:adjustViewBounds="true"
             android:contentDescription="@string/image_preview"
-            android:scaleType="fitCenter"
+            android:scaleType="centerInside"
             app:layout_constraintBottom_toBottomOf="@id/cameraCaptureButton"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@+id/cameraCaptureButton"
-            app:srcCompat="@drawable/ic_photo" />
+            app:srcCompat="@drawable/ic_gallery" />
 
         <ImageView
             android:id="@+id/flashImageView"
             android:layout_width="64dp"
             android:layout_height="64dp"
             android:layout_marginStart="16dp"
-            android:background="@drawable/button_round_corner_4_black_24"
-            android:visibility="gone"
+            android:scaleType="centerInside"
             app:layout_constraintBottom_toBottomOf="@+id/cameraCaptureButton"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@+id/cameraCaptureButton"

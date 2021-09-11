@@ -24,6 +24,7 @@ import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
 import com.example.cameraxapp.databinding.ActivityMainBinding
 import com.example.cameraxapp.extensions.loadCenterCrop
+import com.example.cameraxapp.extensions.previewClear
 import com.example.cameraxapp.util.PhotoPathUtil
 import java.io.File
 import java.io.FileNotFoundException
@@ -43,6 +44,8 @@ class MainActivity : AppCompatActivity() {
     private var uriList = mutableListOf<Uri>()// 사진 촬영 이후의 관리 리스트
     private var root: View? = null
     private var isFlashEnabled = false
+
+    private lateinit var outputDir: File
 
     private val cameraProviderFuture by lazy {
         ProcessCameraProvider.getInstance(this) // 카메라 얻어오면 이후 실행 리스너 등록
@@ -80,6 +83,7 @@ class MainActivity : AppCompatActivity() {
         )
         root = binding.root
         setContentView(binding.root)
+        outputDir = PhotoPathUtil.getOutputDirectory(this@MainActivity)
 
         // 카메라 권한 요청
         if (allPermissionsGranted()) {
@@ -90,6 +94,13 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
+    }
+
+    override fun onResume() = with(binding) {
+        super.onResume()
+        if (outputDir.listFiles().isNullOrEmpty()) {
+            previewImageView.previewClear()
+        }
     }
 
     private fun bindCaptureListener() = with(binding) {
@@ -244,7 +255,7 @@ class MainActivity : AppCompatActivity() {
                     ) // 찍은 이미지를 미리보기 이미지뷰에 보여주기
                 }
                 uriList.add(it)
-                flashLight(false)
+                if (isFlashEnabled) flashLight(false)
                 false
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -268,7 +279,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun bindPreviewImageViewClickListener() = with(binding) {
         previewImageView.setOnClickListener {
-            startActivity(ImageListActivity.newIntent(this@MainActivity, uriList))
+            if (outputDir.listFiles()?.isNotEmpty() == true) {
+                startActivity(ImageListActivity.newIntent(this@MainActivity, uriList))
+            }
         }
     }
 
