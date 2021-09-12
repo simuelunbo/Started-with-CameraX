@@ -5,17 +5,17 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.cameraxapp.databinding.ViewholderImageBinding
-import com.example.cameraxapp.extensions.loadCenterCrop
 import com.example.cameraxapp.viewHolder.ImageViewHolder
 
 class ImageViewPagerAdapter(
-    var uriList: List<Uri>
+    var uriList: MutableList<Uri>
 ) : RecyclerView.Adapter<ImageViewHolder>() {
     override fun onCreateViewHolder(
         parent: ViewGroup,
         viewType: Int
     ): ImageViewHolder {
-        val binding = ViewholderImageBinding.inflate(LayoutInflater.from(parent.context),parent,false)
+        val binding =
+            ViewholderImageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return ImageViewHolder(binding)
     }
 
@@ -24,7 +24,5 @@ class ImageViewPagerAdapter(
     }
 
     override fun getItemCount(): Int = uriList.count()
-
-
 
 }

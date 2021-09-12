@@ -1,7 +1,9 @@
 package com.example.cameraxapp
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.display.DisplayManager
 import android.media.MediaScannerConnection
@@ -13,6 +15,7 @@ import android.util.Log
 import android.view.ScaleGestureDetector
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.core.impl.ImageOutputConfig
@@ -46,6 +49,22 @@ class MainActivity : AppCompatActivity() {
     private var isFlashEnabled = false
 
     private lateinit var outputDir: File
+
+    private var updatePreviewImage =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode == Activity.RESULT_OK) {
+                uriList =
+                    it.data?.getParcelableArrayListExtra(ImageListActivity.URI_LIST_KEY) ?: uriList
+                if (uriList.isNotEmpty()) {
+                    binding.previewImageView.loadCenterCrop(
+                        url = uriList.first().toString(),
+                        corner = 4f
+                    )
+                } else {
+                    binding.previewImageView.previewClear()
+                }
+            }
+        }
 
     private val cameraProviderFuture by lazy {
         ProcessCameraProvider.getInstance(this) // 카메라 얻어오면 이후 실행 리스너 등록
@@ -280,7 +299,14 @@ class MainActivity : AppCompatActivity() {
     private fun bindPreviewImageViewClickListener() = with(binding) {
         previewImageView.setOnClickListener {
             if (outputDir.listFiles()?.isNotEmpty() == true) {
-                startActivity(ImageListActivity.newIntent(this@MainActivity, uriList))
+                val intent = Intent(this@MainActivity, ImageListActivity::class.java).apply {
+                    putExtra(ImageListActivity.URI_LIST_KEY, ArrayList<Uri>().apply {
+                        uriList.forEach {
+                            add(it)
+                        }
+                    })
+                }
+                updatePreviewImage.launch(intent)
             }
         }
     }
