@@ -19,6 +19,7 @@ class ImageListActivity : AppCompatActivity() {
     private lateinit var binding: ActivityImageListBinding
     private lateinit var imageViewPagerAdapter: ImageViewPagerAdapter
     private val uriList by lazy<List<Uri>> { intent.getParcelableArrayListExtra(URI_LIST_KEY)!! }
+    private var currentUri: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,15 +43,22 @@ class ImageListActivity : AppCompatActivity() {
             ViewPager2.OnPageChangeCallback() { // 현재 위치에 따라서 포지션 값 변경
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-                toolbar.title = getString(
-                    R.string.images_page,
-                    position + 1,
-                    imageViewPagerAdapter.uriList.size
-                )
+                if (imageViewPagerAdapter.uriList.isNotEmpty()) {
+                    toolbar.title = getString(
+                        R.string.images_page,
+                        position + 1,
+                        imageViewPagerAdapter.uriList.size
+                    )
+                    currentUri = imageViewPagerAdapter.uriList[position]
+                } else {
+                    currentUri = null
+                }
             }
         })
         deleteButton.setOnClickListener {
-            removeImage(uriList[imageViewPager.currentItem])
+            currentUri?.let {
+                removeImage(it)
+            }
         }
     }
 
@@ -68,7 +76,7 @@ class ImageListActivity : AppCompatActivity() {
     private fun removeImage(uri: Uri) {
         val file = File(PhotoPathUtil.getPath(this, uri) ?: throw FileNotFoundException())
         file.delete() // 실질적으로 이미지 컨텐트가 사라진거지 삭제가 된것이 아니라 따로 삭제 코드 구현해야함
-        val removedImageIndex = uriList.indexOf(uri)
+        val removedImageIndex = imageViewPagerAdapter.uriList.indexOf(uri)
         imageViewPagerAdapter.uriList.removeAt(removedImageIndex)
         imageViewPagerAdapter.notifyItemRemoved(removedImageIndex)
         imageViewPagerAdapter.notifyItemRangeChanged(
@@ -77,12 +85,20 @@ class ImageListActivity : AppCompatActivity() {
         )
         binding.indicator.setViewPager(binding.imageViewPager)
 
+        if (imageViewPagerAdapter.uriList.isNotEmpty()) {
+            currentUri = if (removedImageIndex == 0) {
+                imageViewPagerAdapter.uriList[removedImageIndex]
+            } else {
+                imageViewPagerAdapter.uriList[removedImageIndex - 1]
+            }
+        }
+
         MediaScannerConnection.scanFile(
-            this,
-            arrayOf(uri.path),
-            arrayOf("image/jpeg"),
-            null
-        ) // 다른 앱에 삭제를 알리기 위해 관련 broadcast 전송
+            this, arrayOf(file.path), arrayOf(file.name)
+        ) { _, _ ->
+            contentResolver.delete(uri, null, null)
+        }// 다른 앱에 삭제를 알리기 위해 관련 broadcast 전송
+
         if (imageViewPagerAdapter.uriList.isEmpty()) {
             Toast.makeText(this, getString(R.string.image_not_anymore), Toast.LENGTH_SHORT)
                 .show()
