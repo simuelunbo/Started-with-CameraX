@@ -1,7 +1,6 @@
 package com.example.cameraxapp
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -52,18 +51,20 @@ class MainActivity : AppCompatActivity() {
 
     private var updatePreviewImage =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            if (it.resultCode == Activity.RESULT_OK) {
-                uriList =
-                    it.data?.getParcelableArrayListExtra(ImageListActivity.URI_LIST_KEY) ?: uriList
-                if (uriList.isNotEmpty()) {
-                    binding.previewImageView.loadCenterCrop(
-                        url = uriList.first().toString(),
-                        corner = 4f
-                    )
-                } else {
-                    binding.previewImageView.previewClear()
-                }
+            Log.i("####", "결과값 받는곳 1 Resultcode: ${it.resultCode}")
+//            if (it.resultCode == Activity.RESULT_OK) {
+            uriList =
+                it.data?.getParcelableArrayListExtra(ImageListActivity.URI_LIST_KEY) ?: uriList
+            Log.i("####", "결과값 받는곳 2 uriList: ${uriList.size}")
+            if (uriList.isNotEmpty()) {
+                binding.previewImageView.loadCenterCrop(
+                    url = uriList.first().toString(),
+                    corner = 4f
+                )
+            } else {
+                binding.previewImageView.previewClear()
             }
+//            }
         }
 
     private val cameraProviderFuture by lazy {

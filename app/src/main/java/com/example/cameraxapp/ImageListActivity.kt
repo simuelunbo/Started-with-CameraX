@@ -54,8 +54,7 @@ class ImageListActivity : AppCompatActivity() {
         }
     }
 
-    override fun finish() {
-        super.finish()
+    override fun onBackPressed() {
         setResult(Activity.RESULT_OK, Intent().apply {
             putExtra(URI_LIST_KEY, ArrayList<Uri>().apply {
                 imageViewPagerAdapter.uriList.forEach {
@@ -63,6 +62,7 @@ class ImageListActivity : AppCompatActivity() {
                 }
             })
         })
+        finish()
     }
 
     private fun removeImage(uri: Uri) {
@@ -86,7 +86,7 @@ class ImageListActivity : AppCompatActivity() {
         if (imageViewPagerAdapter.uriList.isEmpty()) {
             Toast.makeText(this, getString(R.string.image_not_anymore), Toast.LENGTH_SHORT)
                 .show()
-            finish()
+            onBackPressed()
         } else {
             binding.toolbar.title = getString(
                 R.string.images_page,
